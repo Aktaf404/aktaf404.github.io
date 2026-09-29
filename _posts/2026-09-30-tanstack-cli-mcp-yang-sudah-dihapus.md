@@ -1,6 +1,6 @@
 ---
 title: TanStack CLI, MCP Server yg Sudah Dihapus
-date: 2026-09-30 09:30:00 +0700
+date: 2026-09-29 22:30:00 +0700
 categories: [Web, AI]
 tags: [tanstack, mcp, cli, ai]
 ---
