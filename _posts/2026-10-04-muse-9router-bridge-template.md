@@ -9,13 +9,13 @@ tags: [9router, muse, bridge, hermes, systemd, tailscale]
 
 ## Masalahnya
 
-Gw punya 9Router jalan di mini PC — pool 5 key Atria, semua model gratis. Tapi Muse AI (agent favorit gw) jalan di **VM terpisah**, ephemeral, dan gak punya akses ke 9Router gw.
+Muse AI (agent favorit gw) itu **agent cloud** — gak ada API publik, cuma bisa diakses lewat web UI. Otaknya (memori, kepribadian, semua konteks gw) ada di sana, tapi tiap mau nanya harus **buka browser, login, ketik manual**.
 
-Setiap kali gw nanya sesuatu ke Muse, itu pake provider Muse sendiri — bukan pool gw. Gak nyambung. Mau ngatur satu-satu? VM-nya reset terus, setup ulang tiap kali itu makan waktu.
+Makanya gw pengen: **chat ke Muse lewat command line / Telegram**, tanpa buka browser. Dan ini harus terus jalan walaupun VM-nya ke-reset.
 
 ## Solusinya: bridge
 
-Gw bikin **shim** — endpoint OpenAI-compatible di depan worker agent Muse. Jadi:
+Karena Muse gak punya API publik, gw bikin **jembatan** sendiri: shim OpenAI-compatible di dalem VM Muse, yg nulis request ke queue, lalu dijawab oleh **scheduled worker Muse sendiri** (pakai prompt khusus). Dari luar, kelihatannya kayak model API biasa.
 
 ```
 client --HTTP--> 9router:20128 --HTTP--> shim:20501
@@ -24,16 +24,18 @@ client --HTTP--> 9router:20128 --HTTP--> shim:20501
   shim baca response --> 9router --> client
 ```
 
-Hasilnya: `hermes --model kamu/agent "pertanyaan"` dijawab **oleh Muse sendiri** (dengan memori & kepribadiannya), tapi lewat 9Router gw. Dari sisi Hermes, `kamu/agent` ini salah satu model biasa. Dari sisi Muse, request masuk kayak chat biasa.
+Hasilnya: `hermes --model kamu/agent "pertanyaan"` dijawab **oleh Muse sendiri** (dengan memori & kepribadiannya). Dari sisi Hermes, `kamu/agent` ini salah satu model biasa. Dari sisi Muse, request masuk kayak chat biasa — dia gak sadar dipanggil dari luar.
 
-**Response time jadi cepet** karena gak ada UI browser di tengah — langsung HTTP → queue → worker.
+Bonus: **response time jadi cepet** karena gak ada UI browser di tengah — langsung HTTP → queue → worker.
 
 ## Isi paket (v2.1)
+
+Semua dipasang **di dalem VM Muse target**, mandiri dari luar:
 
 | Komponen | Fungsi |
 |---|---|
 | **9router** (v0.5.95) | Gateway model AI lokal di `localhost:20128` |
-| **muse-bridge** | Shim OpenAI-compatible → queue → worker Muse. Model publik: `kamu/agent` |
+| **muse-bridge** | Shim OpenAI-compatible → queue → worker Muse. Model: `kamu/agent` |
 | **Pollinations** | Provider gratis keyless: `pllns/gpt-oss`, `pllns/openai-fast` |
 | **caveman** | Token-saver proxy: `9router → caveman:8788 → Pollinations` |
 | **headroom** | Token Saver proxy (context optimizer) di `:8787` |
@@ -42,6 +44,8 @@ Hasilnya: `hermes --model kamu/agent "pertanyaan"` dijawab **oleh Muse sendiri**
 | **hermes** (opt-in) | Telegram gateway → bot jawab sebagai Muse via `kamu/agent` |
 | **health-alert** | Alert Telegram saat service down/pulih (dedup) |
 | **systemd units** | Unit + `keep.sh` keeper + template `container-app@.service` |
+
+Model `kamu/agent` **disengaja gak lewat caveman/Pollinations** — itu bukan model publik, tapi terusan ke otak Muse sendiri.
 
 ## Bagian sulitnya: VM ephemeral
 
