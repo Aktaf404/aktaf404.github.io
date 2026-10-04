@@ -3,7 +3,6 @@ title: "Muse → 9Router Bridge: Template Stack Portabel v2.1"
 date: 2026-10-04 09:00:00 +0700
 categories: [Homelab, AI]
 tags: [9router, muse, bridge, hermes, systemd, tailscale]
-image: /assets/img/muse-bridge-brain-patrick.jpg
 ---
 
 > Ini catatan proyek: bikin **bridge** antara Muse AI (agent) dan gateway 9Router gw sendiri, dikemas jadi **template installable** biar bisa dipasang ulang di VM manapun. File-nya bisa diunduh di bawah.
