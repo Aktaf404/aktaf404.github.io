@@ -1,82 +1,27 @@
 ---
-title: Bikin Denah Rumah Sendiri pakai House Planner (Self-Hosted, Tanpa GPU)
+title: Rumah 2 Lantai dari JSON — Saya Gambar Sendiri Pakai House Planner
 date: 2026-10-09 23:30:00 +0700
 categories: [Homelab, Desain]
 tags: [docker, house-planner, self-hosted, denah, rumah]
 image: /assets/img/house-planner/rumah-3d.png
 ---
 
-Waktu luang di antara jadwal nyetir, aku iseng gambar denah rumah idaman. Bukannya beli software mahal, aku pasang **House Planner** — app open-source (MIT) yang self-hosted di mini PC.
+Ini lanjutan dari post sebelumnya tentang House Planner. Sekarang rumahnya udah 2 lantai, dan yang mau aku ceritain adalah **gimana cara aku bikinnya** — bukan lewat editor gambar, tapi nulis JSON mentahnya langsung.
 
-Hasilnya: denah 2D skala asli, preview 3D, sampai estimasi bahan dan harga. Semua disimpen di server sendiri.
+![Denah lantai 1](/assets/img/house-planner/denah-2d.png)
+*Lantai 1 — ruang tamu, dapur open space, 2 kamar tidur, kamar mandi*
 
-![Denah 2D rumah 10×12 m](/assets/img/house-planner/denah-2d.png)
-*Denah 2D — skala asli dalam milimeter*
+## Mulainya dari nol
 
-## Apa itu House Planner
+Aku gak punya background arsitektur. Sopir B1 seharian, tapi waktu luang aku suka ngoprek komputer. Ide rumah udah lama ada, cuma gak pernah jadi gambar — selalu cuma bayangan.
 
-Repo: [github.com/egmalt/house-planner](https://github.com/egmalt/house-planner)
+Waktu lihat House Planner di GitHub, yang bikin aku tertarik itu formatnya terbuka: **satu rumah = satu file JSON**. Angka-angka di dalemnya millimeter asli, bukan satuan abstrak. Itu artinya aku bisa bikin denahnya dengan nulis teks, gak perlu belajar UI rumit.
 
-App gambar denah rumah self-hosted. Fitur yang aku pakai:
+## Cara aku bikinnya
 
-- **Editor 2D skala asli (mm)** — dinding, pintu, jendela, furniture ukuran asli dari katalog
-- **Preview 3D** — lihat rumah dari segala sudut
-- **Layer utilitas** — saluran, listrik, air, pemanas lantai, lengkap dengan perhitungan
-- **Bill of materials** — otomatis itung bahan + harga
-- **Overlay satelit** — taruh denah di peta
+**Langkah 1: Tentukan ukuran dasar.** Tanah 10×12 m di Jakarta Timur (realistis buat harga tanah sekarang). Bangunan 8×9 m, sisanya buat carport, taman belakang, taman samping. Satu lantai dulu waktu itu.
 
-Stack: **React + PHP, tanpa database**. Plan disimpen sebagai satu file JSON.
-
-## Butuh GPU nggak?
-
-**Nggak.** Ini pertanyaan pertamaku waktu lihat repo ini. Nama pembuatnya (homedesignsai.pro) bikin dugaan ada AI di baliknya — ternyata nggak. Yang ada:
-
-- Server cuma nyimpen JSON — CPU biasa cukup
-- Render 3D jalan di browser (WebGL), alias GPU di komputer/HP yang buka — ringan
-- Nggak ada inferensi AI server-side
-
-VPS paling murah atau shared hosting PHP udah cukup.
-
-## Pasang
-
-Docker, dua perintah:
-
-```shell
-git clone https://github.com/egmalt/house-planner.git
-cd house-planner
-docker compose up -d --build
-```
-
-Build-nya butuh beberapa menit (npm install di dalam image). Selesai, buka `/api/setup.php`, set password sekali, simpen, dan langsung jalan.
-
-Aku naruh di mini PC lewat Tailscale, jadi bisa dibuka dari HP di mana aja aman.
-
-## Desainnya
-
-Tanah **10×12 m** di Jakarta Timur, bangunan 8×9 m, satu lantai, gaya minimalis tropis:
-
-- **Ruang tamu + dapur open space** (36.8 m²) — dapur linear, meja makan 4 kursi
-- **Kamar tidur utama** — kasur 160, lemari, meja samping
-- **Kamar tidur anak** — kasur single, meja belajar
-- **Kamar mandi** — toilet, wastafel, mesin cuci
-- **Area cuci** terpisah di belakang
-- **Carport** di depan (2.6×6 m), taman belakang + taman samping
-
-Total **67.7 m²** luas dalam (74.6 m² termasuk dinding).
-
-![Tampilan 3D dari depan](/assets/img/house-planner/rumah-3d-depan.png)
-*View depan — pintu masuk samping carport, jendela besar menghadap jalan*
-
-![Tampilan 3D isometrik](/assets/img/house-planner/rumah-3d.png)
-*View 3/4 — terlihat semua zona dalam satu lihatan*
-
-## Detail teknis yang keren
-
-Beberapa hal yang bikin app ini beda dari editor denah biasa:
-
-**Semua angka dalam milimeter bulat.** Dinding 150 mm, jendela 1400×900, tangga — semuanya skala asli. Bisa dijadikan acuan nyata buat tukang.
-
-**Format plan terbuka.** Satu file JSON, dan ini benar-benar bisa dibaca + diedit manual. Ini contohnya (potongan):
+**Langkah 2: Nulis JSON.** Ini contoh dinding asli dari denahku:
 
 ```json
 {
@@ -89,44 +34,99 @@ Beberapa hal yang bikin app ini beda dari editor denah biasa:
 }
 ```
 
-Aku bikin denahnya **bukan** lewat editor, tapi nulis JSON ini langsung lewat chat AI, lalu upload ke server pakai script bawaan `plan-push.sh`. Sekali jadi, buka di browser — keluar denahnya. Editor tetap dipakai untuk visualisasi & koreksi kecil.
+Dinding depan, 8 meter panjang (dari x=1000 ke x=9000), tebal 150 mm (bata ringan), tinggi 2800. Titik `a` ke `b` adalah sumbu dindingnya. Bukaan — pintu, jendela — ditaruh di dinding dengan offset dari titik `a`.
 
-**Versioning bawaan.** Setiap perubahan disimpen ke `versions/` di server, dengan nomor revisi. Kalau salah naruh, balik ke revisi sebelumnya. Ada juga snapshot bernama.
+**Langkah 3: Upload ke server** pakai script bawaan `plan-push.sh`. Buka browser, keluar denahnya. Selesai.
 
-**Estimasi otomatis.** Material dinding dihitung dari panjang×tinggi dinding, dan angka di tabel ini ikut pas diganti material:
+Satu hal yang keren: aku gak pernah klik-klik editor buat bikin denah utamanya. Semua dari nulis. Editor aku pake cuma buat lihat hasil dan ambil screenshot.
+
+## Konsep ruang
+
+Aku pikirin alurnya kayak orang beneran tinggal:
+
+- **Pintu masuk** di depan, langsung ke ruang tamu + dapur yang open space — 36.8 m². Tamu gak perlu lewat lorong.
+- **Dapur linear** di kanan: sink, kompor, kulkas sejajar, meja makan 4 kursi di ujung.
+- **2 kamar tidur** di belakang, terpisah dari area umum biar bising dari ruang tamu gak masuk waktu tidur.
+- **Kamar mandi** di tengah, masuk dari lorong kecil, bukan dari kamar manapun — supaya gak mengganggu privasi kamar.
+- **Area cuci** terpisah di paling belakang, mesin cuci gak campur sama kamar mandi.
+- **Carport** di depan 2.6×6 m, muat 1 mobil + sedikit ruang.
+- **Taman** belakang buat bunga + samping buat jemur.
+
+Total luas dalam **67.7 m²**, atau 74.6 m² kalau dihitung dinding.
+
+## Naik ke 2 lantai
+
+Minggu kemarin aku kepikiran: tanahnya udah beli, kenapa gak 2 lantai aja? Biaya bangunan naik, tapi luasnya bisa dobel tanpa nambah tanah.
+
+Ada satu masalah teknis: **House Planner cuma support 1 lantai di 3D.** Di format plan-nya gak ada field "lantai 2" — dinding selalu mulai dari lantai dasar. Jadi gak bisa dibikin denah lantai 1 + 2 di satu file, terus lihat keduanya di 3D.
+
+Jalan keluarnya: **1 lantai = 1 file**, disimpen jadi snapshot di server. App-nya punya versioning bawaan — setiap simpen bikin revisi, dan bisa bikin snapshot dengan nama. Jadi:
+
+- Snapshot 1: **"Lantai 1 — 10×12 m, ruang tamu + dapur"**
+- Snapshot 2: **"Lantai 2 — 2 kamar + ruang keluarga"**
+
+Tinggal klik di menu Versions, denahnya switch instan. Footprint-nya sama persis (8×9 m), biar struktur dinding turunan aman.
+
+### Lantai 2
+
+![Denah lantai 2](/assets/img/house-planner/lantai2-denah.png)
+*Lantai 2 — ruang keluarga, balkon, 2 kamar tidur, kamar mandi*
+
+Perubahan ruting:
+
+- **Ruang keluarga** gantin ruang tamu — lebih private, di lantai atas
+- **Balkon** di depan, akses dari ruang keluarga lewat pintu geser 2.4 m. Buat ngopi sore.
+- **Sudut baca** kecil di sisa ruang: bookcase, tanaman, sofa ambihan
+- **Kamar utama** naik ke 2 lantai, kasur dilebarin dari 160 ke 180
+- **Kamar mandi** dapet shower (lantai 1 cuma toilet + wastafel + mesin cuci)
+- **Meja belajar** pindah ke kamar anak lantai 2, biar sepi waktu belajar
+
+Yang aku jaga: tangga. Sayangnya **House Planner gak punya tangga di katalog furniturenya**, jadi aku kasih note aja di denah. Ini satu hal yang masih kurang dari app ini.
+
+## Estimasi bahan
+
+App-nya otomatis itung dinding, bukaan, material:
 
 | Bagian | Estimasi |
 |---|---|
 | Pondasi batu kali | 12 m³ |
 | Atap baja ringan | 90 m² |
 | Lantai keramik 60×60 | 80 m² |
-| Pintu + jendela | 10 unit |
+| Pintu + jendela alumunium | 10 unit (lantai 1), +6 lantai 2 |
 | Instalasi (listrik, air, saniter) | 1 lot |
 
-## Yang masih bisa dioprek
+Harganya masih kasar, belum aku masukin harga toko bangunan terdekat. App-nya bisa diisi harga per material dan toko, cuma butuh waktu survei dulu.
 
-- **Listrik & saluran belum aku gambar** — editor-nya punya mode trace otomatis dari titik ke titik, plus peringatan kalau ada yang nggak aman (jarak ke wastafel, dan lain-lain)
-- **Harga masih estimasi kasar** — katalog materialnya bisa diisi dengan harga toko bangunan terdekat
-- **Belum ada garis batas kavling asli** — fitur `site-fixed.json` bisa kunci boundary supaya nggak sengaja geser
-- **Lantai 2** — sekarang masih 1 lantai; konsep 2 lantai tinggal ditambahkan
+## Yang aku pelajarin
 
-## Total biaya infrastruktur
+Beberapa hal setelah nulis denah sendiri:
 
-Nol. Semua jalan di mini PC yang udah ada:
+**Millimeter itu ternyata bikin pusing.** Dinding tebel 150 mm bukan 150 cm. Pertama aku tulis semua angka, baru sadar satuannya ribuan. Untungnya aku nulis JSON, jadi gampang koreksi — tinggal cari ganti.
 
-- Mini PC (Proxmox container) — idle, CPU kecil
-- Docker container 1 buat app
-- Tailscale untuk akses dari luar
-- Domain gratis dari GitHub Pages buat blog ini
+**Furniture nggak sekadar tempat.** Ukuran asli katalog bikin aku sadar: kamar 3×3 m dengan kasur 160 + lemari 120 tebal beneran. Sebelnya jadi sempit. Akhirnya aku lebarin kamar ke 3.2 m, lemari pindah ke dinding lain.
 
-Yang ada biayanya cuma bangunan aslinya nanti — itu juga masih rencana, jadi angka di atas angka-angkaan, bukan tagihan.
+**Bukaan itu strategi.** Jendela 1.4 m di dinding yang salah = panas sore masuk ke kamar. Aku pikirin arah matahari waktu naruh jendela — kamar tidur utama ngadep timur (pagi), ruang tamu ngadep utara (gak silau).
 
-## Coba sendiri
+**Kamar mandi di tengah itu trik.** Awalnya mau masuk dari kamar utama (enak), tapi itu bikin kamar mandi jadi milik 1 kamar. Akhirnya masuk dari lorong — siapapun bisa akses tanpa masuk kamar orang.
 
-Kalau mau lihat atau pasang sendiri:
+## Versi dan backup
 
-- **Source:** [github.com/egmalt/house-planner](https://github.com/egmalt/house-planner)
-- **License:** MIT — gratis, bebas modifikasi
-- **Requirement:** Docker atau hosting PHP 8.1+ (dengan Apache), tanpa database
+Salah satu fitur favoritku: **semua revisi disimpen di server.** Setiap kali denah berubah, file `versions/` di server dapet salinan dengan timestamp. Kalau aku salah naruh dinding, balik ke revisi sebelumnya.
 
-Yang menarik dari proyek seperti ini: ternyata butuh alat mahal atau GPU untuk bikin sesuatu yang berguna. Yang dibutuhkan cuma kemauan dan satu malam luang.
+![Tampilan 3D](/assets/img/house-planner/rumah-3d.png)
+*View 3/4 lantai 1 — render WebGL di browser, server gak butuh GPU*
+
+Kalau kamu pernah ngerjain file desain di Photoshop tanpa save-as versi, pasti tau rasanya fitur ini.
+
+## Selanjutnya
+
+- **Garis batas kavling asli** — ada fitur `site-fixed.json` yang bisa kunci koordinat tanah supaya gak sengaja geser
+- **Harga real** — survei toko bangunan Jaktim, masukin harga per material
+- **Tangga** — masih jadi lubang di denah, harus dimanualin
+- **Listrik & saluran** — app-nya punya layer terpisah dengan trace otomatis + peringatan keamanan
+
+## Buat yang mau coba
+
+Source: [github.com/egmalt/house-planner](https://github.com/egmalt/house-planner) (MIT, gratis). Butuh Docker atau hosting PHP 8.1+, tanpa database, tanpa GPU.
+
+Kalau kamu punya tanah dan kepikiran rumah, coba aja. Gak perlu jago gambar — aku buktiin, nulis angka millimeter di file teks pun bisa jadi rumah.
