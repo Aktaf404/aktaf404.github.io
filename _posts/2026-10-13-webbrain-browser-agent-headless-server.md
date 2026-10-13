@@ -1,5 +1,5 @@
 ---
-title: WebBrain: Bikin Chrome Headless Jadi Browser Agent di Server Tanpa Monitor
+title: "WebBrain: Bikin Chrome Headless Jadi Browser Agent di Server Tanpa Monitor"
 date: 2026-10-13 22:00:00 +0700
 categories: [Homelab, AI]
 tags: [webbrain, chrome, headless, mcp, hermes]
