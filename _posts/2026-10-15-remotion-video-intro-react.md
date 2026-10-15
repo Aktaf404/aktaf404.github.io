@@ -31,6 +31,7 @@ Bonus yang kepikiran belakangan: skill-nya **lumayan bagus**. Ada guidance cara 
 
 Struktur kode intro-ku:
 
+{% raw %}
 ```tsx
 const LetterName: React.FC = () => {
   const frame = useCurrentFrame();
@@ -57,6 +58,7 @@ const LetterName: React.FC = () => {
   );
 };
 ```
+{% endraw %}
 
 Tiap huruf masuk sendiri-sendiri dengan delay 0.05 detik — dari blur jadi tajam, turun dari atas. Ini yang di After Effects namanya stagger, tapi di sini cuma `.map()` + `interpolate()`.
 
