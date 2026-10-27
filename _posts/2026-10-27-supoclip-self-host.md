@@ -30,6 +30,10 @@ Judul hook-nya juga ditulis AI dan dibakar di detik-detik awal klip: *"The ultim
 
 ![Tiga klip hasil generate, lengkap dengan skor viral](/assets/img/supoclip-clips.png)
 
+Semua hasil generate ngumpul di halaman Library, lengkap dengan jumlah klip dan skor tertinggi biar gampang milih mana yang mau dipakai:
+
+![Library SupoClip setelah satu video diproses](/assets/img/supoclip-library.png)
+
 ## Isinya apa
 
 SupoClip itu pipeline lengkap, bukan sekadar pemotong:
