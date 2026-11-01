@@ -10,14 +10,14 @@
   #hud b{color:#5ee08a;font-weight:600}
   canvas{display:block}
 </style>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"../vendor/"}}</script>
+<script type="importmap">{"imports":{"three":"./lib/three.module.js","three/addons/":"../lib/"}}</script>
 </head>
 <body>
 <div id="hud">drag = orbit · scroll = zoom · <b>fan running</b></div>
 <script type="module">
 import * as THREE from 'three';
-import { OrbitControls } from './vendor/OrbitControls.js';
-import { RoomEnvironment } from './vendor/RoomEnvironment.js';
+import { OrbitControls } from './lib/OrbitControls.js';
+import { RoomEnvironment } from './lib/RoomEnvironment.js';
 
 // ---------- scene ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
