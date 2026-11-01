@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Homelab Server Rack — 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><rect width=%2216%22 height=%2216%22 fill=%22%23222%22/><rect x=%224%22 y=%223%22 width=%228%22 height=%222%22 fill=%22%235ee08a%22/></svg>">
+<style>
+  html,body{margin:0;height:100%;background:#0b0d10;overflow:hidden;font:13px/1.4 ui-monospace,monospace;color:#8b98a8}
+  #hud{position:fixed;left:14px;bottom:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.65}
+  #hud b{color:#5ee08a;font-weight:600}
+  canvas{display:block}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"../vendor/"}}</script>
+</head>
+<body>
+<div id="hud">drag = orbit · scroll = zoom · <b>fan running</b></div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from './vendor/OrbitControls.js';
+import { RoomEnvironment } from './vendor/RoomEnvironment.js';
+
+// ---------- scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.38;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0d10);
+scene.fog = new THREE.Fog(0x0b0d10, 5.5, 11);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.05, 60);
+camera.position.set(2.0, 1.75, 3.2);
+
+// image-based lighting: metalness without an env map renders black
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.02).texture;
+scene.environmentIntensity = 0.8;
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.02, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.45;
+controls.minDistance = 1.1;
+controls.maxDistance = 6;
+controls.maxPolarAngle = Math.PI * 0.52;
+
+// ---------- materials ----------
+const M = {
+  post:  new THREE.MeshStandardMaterial({ color: 0x23272e, metalness: 0.95, roughness: 0.38 }),
+  panel: new THREE.MeshStandardMaterial({ color: 0x1a1e24, metalness: 0.85, roughness: 0.5 }),
+  chassis: new THREE.MeshStandardMaterial({ color: 0x353c45, metalness: 0.85, roughness: 0.42 }),
+  bezel: new THREE.MeshStandardMaterial({ color: 0x191d22, metalness: 0.65, roughness: 0.6 }),
+  bay:   new THREE.MeshStandardMaterial({ color: 0x5b656f, metalness: 0.8, roughness: 0.3 }),
+  vent:  new THREE.MeshStandardMaterial({ color: 0x090b0e, metalness: 0.4, roughness: 0.9 }),
+  blade: new THREE.MeshStandardMaterial({ color: 0x3d4550, metalness: 0.7, roughness: 0.35, side: THREE.DoubleSide }),
+  fanFrame: new THREE.MeshStandardMaterial({ color: 0x101317, metalness: 0.6, roughness: 0.65 }),
+  ledG:  new THREE.MeshStandardMaterial({ color: 0x66ff99, emissive: 0x2bff77, emissiveIntensity: 2.2, roughness: 0.4 }),
+  ledA:  new THREE.MeshStandardMaterial({ color: 0xffc46b, emissive: 0xff9d2e, emissiveIntensity: 1.8, roughness: 0.4 }),
+  ledB:  new THREE.MeshStandardMaterial({ color: 0x7cc4ff, emissive: 0x2f8dff, emissiveIntensity: 1.6, roughness: 0.4 }),
+  floor: new THREE.MeshStandardMaterial({ color: 0x101418, metalness: 0.5, roughness: 0.85 }),
+};
+
+// ---------- floor ----------
+const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 64), M.floor);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const grid = new THREE.GridHelper(8, 32, 0x1d2a33, 0x141b21);
+grid.position.y = 0.002;
+scene.add(grid);
+
+// ---------- rack dimensions (metres) ----------
+const W = 0.60, H = 2.00, D = 1.00, U = 0.0445;
+const rack = new THREE.Group();
+scene.add(rack);
+
+// frame: 4 posts + top/bottom + side panels + rear panel
+const post = (x, z) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.035, H, 0.035), M.post);
+  m.position.set(x, H / 2, z);
+  m.castShadow = m.receiveShadow = true;
+  rack.add(m);
+};
+post(-W / 2 + 0.02, D / 2 - 0.02); post(W / 2 - 0.02, D / 2 - 0.02);
+post(-W / 2 + 0.02, -D / 2 + 0.02); post(W / 2 - 0.02, -D / 2 + 0.02);
+post(-W / 2 + 0.02, 0); post(W / 2 - 0.02, 0);
+
+const slab = (w, h, d, x, y, z, mat = M.panel) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  m.castShadow = m.receiveShadow = true;
+  rack.add(m);
+  return m;
+};
+slab(W - 0.006, 0.02, D - 0.006, 0, H + 0.01, 0); // top
+slab(W - 0.02, 0.05, D - 0.04, 0, 0.025, 0);      // plinth
+slab(0.014, H - 0.025, D - 0.03, -W / 2 + 0.007, (H - 0.02) / 2, 0); // left side
+slab(0.014, H - 0.025, D - 0.03, W / 2 - 0.007, (H - 0.02) / 2, 0);  // right side
+for (let y = 0.30; y < H - 0.22; y += 0.16) {
+  for (const sx of [-1, 1]) {
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.012, D * 0.55), M.vent);
+    slot.position.set(sx * (W / 2 - 0.002), y, -0.04);
+    rack.add(slot);
+  }
+}
+slab(W - 0.03, H - 0.07, 0.014, 0, H / 2, -D / 2 + 0.007, M.chassis); // rear panel
+
+// rear mesh grille (perforated look via thin slats)
+for (let y = 0.14; y < H - 0.12; y += 0.03) {
+  slab(W - 0.10, 0.006, 0.004, 0, y, -D / 2 + 0.004, M.vent);
+}
+
+// mounting rails with U holes
+const railGeo = new THREE.BoxGeometry(0.012, H - 0.10, 0.02);
+const railL = new THREE.Mesh(railGeo, M.post), railR = new THREE.Mesh(railGeo, M.post);
+railL.position.set(-W / 2 + 0.045, H / 2, D / 2 - 0.03);
+railR.position.set(W / 2 - 0.045, H / 2, D / 2 - 0.03);
+railL.castShadow = railR.castShadow = true;
+rack.add(railL, railR);
+const holeGeo = new THREE.BoxGeometry(0.009, 0.009, 0.004);
+const holeMat = new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 1, metalness: 0 });
+for (let y = 0.16; y < H - 0.16; y += U / 3) {
+  for (const rx of [-0.253, 0.253]) {
+    for (const dz of [-0.014, 0.014]) {
+      const h = new THREE.Mesh(holeGeo, holeMat);
+      h.position.set(rx + (rx < 0 ? 0.009 : -0.009), y, D / 2 - 0.03 + dz);
+      rack.add(h);
+    }
+  }
+}
+
+// vent floor + roof fans mount
+const fanMount = new THREE.Group();
+fanMount.position.set(0, 1.78, 0.06);
+rack.add(fanMount);
+
+// ---------- fans ----------
+const fans = [];
+
+function makeBlade() {
+  const s = new THREE.Shape();
+  s.moveTo(0.006, 0.012);
+  s.quadraticCurveTo(0.030, 0.052, 0.010, 0.098);
+  s.quadraticCurveTo(0.030, 0.062, 0.052, 0.030);
+  s.quadraticCurveTo(0.030, 0.014, 0.006, 0.012);
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.0018, bevelEnabled: false, curveSegments: 8 });
+  g.translate(0, 0, -0.0009);
+  return g;
+}
+const bladeGeo = makeBlade();
+
+function makeFan(r = 0.062, blades = 7) {
+  const g = new THREE.Group();
+
+  // housing: fans sit inside a tray body, not floating in air
+  const housing = new THREE.Mesh(new THREE.BoxGeometry(r * 2.34, r * 2.34, 0.052), M.fanFrame);
+  housing.position.z = -0.028;
+  housing.castShadow = housing.receiveShadow = true;
+  g.add(housing);
+
+  // shroud: square frame with circular opening
+  const shroud = new THREE.Mesh(new THREE.BoxGeometry(r * 2.28, r * 2.28, 0.014), M.fanFrame);
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) { // hollow it out visually: corner posts
+    const c = new THREE.Mesh(new THREE.BoxGeometry(r * 0.34, 0.016, 0.016), M.post);
+    c.position.set(sx * r * 1.0, sy * r * 1.0, 0.006);
+    g.add(c);
+  }
+  shroud.position.z = -0.006;
+  g.add(shroud);
+  for (const sy of [-1, 1]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(r * 2.28, r * 0.3, 0.014), M.fanFrame);
+    bar.position.set(0, sy * r * 1.0, 0.002);
+    g.add(bar);
+  }
+  for (const sx of [-1, 1]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(r * 0.3, r * 2.28, 0.014), M.fanFrame);
+    bar.position.set(sx * r * 1.0, 0, 0.002);
+    g.add(bar);
+  }
+
+  // guard rings
+  for (const rr of [r * 0.97, r * 0.78, r * 0.56]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.0016, 6, 48), M.post);
+    ring.position.z = 0.008;
+    g.add(ring);
+  }
+
+  // rotor
+  const rotor = new THREE.Group();
+  rotor.position.z = 0.004;
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.26, r * 0.28, 0.012, 24), M.bezel);
+  hub.rotation.x = Math.PI / 2;
+  hub.castShadow = true;
+  rotor.add(hub);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.13, r * 0.13, 0.014, 20), M.bay);
+  cap.rotation.x = Math.PI / 2;
+  cap.position.z = 0.003;
+  rotor.add(cap);
+  for (let i = 0; i < blades; i++) {
+    const b = new THREE.Mesh(bladeGeo, M.blade);
+    b.rotation.z = (i / blades) * Math.PI * 2;
+    b.position.z = 0.001;
+    b.rotation.x = 0.32;      // blade pitch
+    b.castShadow = true;
+    rotor.add(b);
+  }
+  g.add(rotor);
+  g.userData.rotor = rotor;
+  fans.push(g);
+  return g;
+}
+
+// top fan panel: 3 x 120mm, front face, own 6U bay
+const fanY = 1.66;
+for (let i = -1; i <= 1; i++) {
+  const f = makeFan(0.058);
+  f.position.set(i * 0.15, fanY, 0.285);
+  rack.add(f);
+}
+// fan panel faceplate around the top fans
+for (const sx of [-1, 1]) {
+  const side = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.155, 0.016), M.bezel);
+  side.position.set(sx * 0.24, fanY, 0.30);
+  rack.add(side);
+}
+for (const sy of [-1, 1]) {
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.022, 0.016), M.bezel);
+  bar.position.set(0, fanY + sy * 0.077, 0.30);
+  rack.add(bar);
+}
+// bottom intake fans, front face
+for (let i = 0; i < 2; i++) {
+  const f = makeFan(0.05);
+  f.position.set((i - 0.5) * 0.185, 0.118, 0.285);
+  rack.add(f);
+}
+// rear exhaust pair
+for (let i = 0; i < 2; i++) {
+  const f = makeFan(0.058);
+  f.position.set((i - 0.5) * 0.22, H - 0.32, -D / 2 + 0.03);
+  f.rotation.y = Math.PI;
+  rack.add(f);
+}
+// ---------- servers ----------
+const serverGroup = new THREE.Group();
+rack.add(serverGroup);
+
+function makeServer(u = 2, opts = {}) {
+  const h = u * U - 0.003;
+  const g = new THREE.Group();
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.44, h, 0.72), M.chassis);
+  body.position.z = -0.06;
+  body.castShadow = body.receiveShadow = true;
+  g.add(body);
+
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.445, h, 0.018), M.bezel);
+  bezel.position.z = 0.30;
+  bezel.castShadow = true;
+  g.add(bezel);
+
+  const leds = [M.ledG, M.ledB, M.ledA];
+  if (u >= 2) {
+    // drive bays
+    const bayW = 0.096, n = 4;
+    for (let i = 0; i < n; i++) {
+      const bay = new THREE.Mesh(new THREE.BoxGeometry(bayW, h * 0.72, 0.012), M.bay);
+      bay.position.set(-0.155 + i * (bayW + 0.004), 0, 0.311);
+      g.add(bay);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(bayW * 0.86, 0.005, 0.01), M.post);
+      handle.position.set(bay.position.x, -h * 0.22, 0.316);
+      g.add(handle);
+    }
+    // vent slits side of bays
+    for (let i = 0; i < 5; i++) {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.002, h * 0.62, 0.008), M.vent);
+      s.position.set(0.075 + i * 0.012, 0, 0.313);
+      g.add(s);
+    }
+    // label strip + power button
+    const label = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.004, 0.002),
+      new THREE.MeshStandardMaterial({ color: 0xb9c3cd, roughness: 0.8, metalness: 0.1 }));
+    label.position.set(0.13, -h * 0.28, 0.314);
+    g.add(label);
+    const pwr = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.003, 14), M.bay);
+    pwr.rotation.x = Math.PI / 2;
+    pwr.position.set(0.205, h * 0.02, 0.317);
+    g.add(pwr);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.006, h * 0.5, 0.002), M.ledB);
+    bar.position.set(-0.215, 0, 0.315);
+    g.add(bar);
+    // status LEDs
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.0032, 8, 8), leds[0]);
+    led.position.set(0.185, h * 0.16, 0.315);
+    g.add(led);
+    const led2 = new THREE.Mesh(new THREE.SphereGeometry(0.0032, 8, 8), leds[1]);
+    led2.position.set(0.185, -h * 0.10, 0.315);
+    g.add(led2);
+    if (opts.amber) {
+      const l3 = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.003, 0.004), leds[2]);
+      l3.position.set(0.20, 0, 0.315);
+      g.add(l3);
+    }
+  } else {
+    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.30, h * 0.6, 0.008), M.vent);
+    vent.position.set(-0.04, 0, 0.311);
+    g.add(vent);
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.003, 8, 8), leds[0]);
+    led.position.set(0.185, 0, 0.315);
+    g.add(led);
+  }
+  return g;
+}
+
+// fill rack: 4U storage at bottom, 2U compute, 1U patch/switch, gaps for airflow
+const layout = [];
+let cy = 0.20;
+const pattern = [4, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2];
+for (const u of pattern) { layout.push({ y: cy, u }); cy += u * U + 0.006; }
+layout[3].amber = layout[7].amber = layout[10].amber = true;
+for (const it of layout) {
+  const s = makeServer(it.u, it);
+  s.position.set(0, it.y + (it.u * U) / 2 - 0.02, 0);
+  serverGroup.add(s);
+  // rail ears
+  for (const sx of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.014, it.u * U - 0.004, 0.02), M.post);
+    ear.position.set(sx * 0.228, 0, 0.29);
+    s.add(ear);
+  }
+}
+
+// rear cabling (a few curved tubes)
+const cableMat = new THREE.MeshStandardMaterial({ color: 0x12161a, roughness: 0.85, metalness: 0.2 });
+for (let i = 0; i < 12; i++) {
+  const y0 = 0.55 + i * 0.105;
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.14 + (i % 4) * 0.09, y0, -D / 2 + 0.02),
+    new THREE.Vector3(-0.10 + (i % 3) * 0.08, y0 - 0.14, -D / 2 - 0.06),
+    new THREE.Vector3(0.10 - (i % 3) * 0.07, y0 - 0.22, -D / 2 - 0.05),
+    new THREE.Vector3(0.13 - (i % 4) * 0.08, y0 - 0.36, -D / 2 + 0.01),
+  ]);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.006, 6, false), cableMat);
+  tube.castShadow = true;
+  rack.add(tube);
+}
+
+// ---------- lighting ----------
+scene.add(new THREE.HemisphereLight(0x7f9cbb, 0x121820, 1.0));
+
+const key = new THREE.DirectionalLight(0xf2f6ff, 3.2);
+key.position.set(2.2, 3.2, 2.6);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 0.5;
+key.shadow.camera.far = 12;
+const d = 2.6;
+Object.assign(key.shadow.camera, { left: -d, right: d, top: d, bottom: -d });
+key.shadow.bias = -0.0008;
+scene.add(key);
+
+const rim = new THREE.DirectionalLight(0x6d9cff, 2.2);
+rim.position.set(-2.6, 1.6, -2.4);
+scene.add(rim);
+
+const fill = new THREE.PointLight(0xffd9a8, 12, 5, 2);
+fill.position.set(1.0, 0.8, 1.9);
+scene.add(fill);
+
+const frontLight = new THREE.DirectionalLight(0xe8f0ff, 2.0);
+frontLight.position.set(0.5, 1.5, 4.0);
+scene.add(frontLight);
+
+const inner = new THREE.PointLight(0x66ffcc, 0.55, 1.2, 2);
+inner.position.set(0, 1.55, 0.06);
+scene.add(inner);
+
+// ---------- animation ----------
+const clock = new THREE.Clock();
+let flicker = 0;
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+
+  fans.forEach((f, i) => {
+    const r = f.userData.rotor;
+    const dir = i < 3 ? 1 : (i < 5 ? 1 : -1);   // rear pair counter-rotates
+    r.rotation.z += (i < 3 ? 0.20 : 0.14) * dir;
+  });
+
+  // subtle LED breathing
+  inner.intensity = 1.2 + Math.sin(t * 2.3) * 0.25;
+  M.ledG.emissiveIntensity = 1.9 + Math.sin(t * 3.1) * 0.7;
+  M.ledB.emissiveIntensity = 1.4 + Math.sin(t * 1.7 + 2) * 0.45;
+
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// debug hook for headless capture/inspection
+window.__T = { THREE, scene, camera, renderer, controls, rack, fans };
+
+// hunt API for headless capture: ?angle=front|right|rear|left|three-quarter
+const q = new URLSearchParams(location.search).get('angle');
+if (q) {
+  controls.autoRotate = false;
+  const R = 3.45, y = 1.42, target = controls.target;
+  const map = { front: 0, right: 90, rear: 180, left: 270, tq: 35 };
+  const deg = (map[q] ?? 0) * Math.PI / 180;
+  camera.position.set(Math.sin(deg) * R, y, Math.cos(deg) * R);
+  camera.lookAt(target);
+  controls.update();
+}
+</script>
+</body>
+</html>
